@@ -1,0 +1,190 @@
+
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Hidro PWA</title>
+  <link rel="manifest" href="./manifest.json">
+  <link rel="stylesheet" href="./styles.css">
+  <meta name="theme-color" content="#0e766e">
+</head>
+<body>
+  <div class="appbar">
+    <div class="container brand">
+      <img src="./icons/icon-192.png" alt="Hidro">
+      <h1>Hidro PWA – Cadastro e Vazão</h1>
+    </div>
+  </div>
+
+  <div class="container">
+    <div id="envWarn" class="pill" style="display:none; margin-bottom:10px;"></div>
+    <nav class="nav">
+      <a href="#client" class="active">Cliente</a>
+      <a href="#location">Local</a>
+      <a href="#metal">Metal</a>
+      <a href="#view">Registros</a>
+    </nav>
+
+    <!-- CLIENT -->
+    <section id="client" class="page">
+      <div class="card">
+        <h2>Cadastro do Cliente</h2>
+        <form id="clientForm">
+          <label for="clientName">Nome do cliente</label>
+          <input id="clientName" placeholder="Ex.: Construtora Exemplo" required>
+          <label for="projectNumber">Número do projeto</label>
+          <input id="projectNumber" placeholder="Ex.: 2025-001">
+          <div class="actions">
+            <button class="btn btn-primary" type="submit">Salvar cliente e continuar</button>
+          </div>
+          <p class="note">Após salvar o cliente, você irá para o cadastro do Local.</p>
+        </form>
+      </div>
+    </section>
+
+    <!-- LOCATION -->
+    <section id="location" class="page" hidden>
+      <div class="card">
+        <h2>Cadastro do Local</h2>
+        <form id="locationForm">
+          <div class="row row-2">
+            <div>
+              <label for="floor">Andar</label>
+              <input id="floor" placeholder="Ex.: 5º">
+            </div>
+            <div>
+              <label for="sector">Setor</label>
+              <input id="sector" placeholder="Ex.: Ala Leste">
+            </div>
+          </div>
+          <div class="row">
+            <div>
+              <label for="place">Local</label>
+              <select id="place"></select>
+            </div>
+          </div>
+          <div id="placeOtherWrap" hidden>
+            <label for="placeOther">Outro local (digite)</label>
+            <input id="placeOther" placeholder="Ex.: Cozinha experimental">
+          </div>
+          <div class="actions">
+            <a class="btn btn-secondary" href="#client">← Voltar</a>
+            <button class="btn btn-primary" type="submit">Salvar local e continuar</button>
+          </div>
+        </form>
+      </div>
+    </section>
+
+    <!-- METAL -->
+    <section id="metal" class="page" hidden>
+      <div class="card">
+        <h2>Cadastro de Metal</h2>
+        <form id="metalForm">
+          <div class="row row-3">
+            <div>
+              <label for="metalType">Metal hidrossanitário</label>
+              <select id="metalType"></select>
+            </div>
+            <div id="quantityWrap">
+              <label for="quantity">Quantidade</label>
+              <input id="quantity" type="number" min="1" value="1">
+            </div>
+            <div id="numberWrap" hidden>
+              <label for="number">Nº (para torneira/outro)</label>
+              <input id="number" placeholder="Ex.: 12">
+            </div>
+          </div>
+          <div class="row row-2">
+            <div id="brandWrap">
+              <label for="brand">Marca</label>
+              <input id="brand" placeholder="Ex.: Deca">
+            </div>
+            <div id="modelWrap">
+              <label for="model">Modelo</label>
+              <input id="model" placeholder="Ex.: Link 1177.C">
+            </div>
+          </div>
+
+          <div class="row row-2" id="timerWrap" hidden>
+            <div>
+              <label>Cronômetro</label>
+              <div class="timer">
+                <div class="timeface" id="timeface">00:00</div>
+                <button type="button" class="btn btn-primary" id="btnStart">Iniciar</button>
+                <button type="button" class="btn btn-secondary" id="btnStop">Parar</button>
+                <button type="button" class="btn btn-ghost" id="btnReset">Zerar</button>
+              </div>
+              <input id="timeSeconds" type="hidden" value="0">
+              <p class="note">Use o cronômetro para medir o tempo (s) e calcule a vazão a partir do volume medido.</p>
+            </div>
+            <div id="volumeWrap">
+              <label for="volumeMl">Volume medido (mL)</label>
+              <input id="volumeMl" type="number" min="0" step="1" placeholder="Ex.: 2000">
+              <p class="note">O app converte mL → L automaticamente para calcular L/min.</p>
+            </div>
+          </div>
+
+          <div class="row row-2">
+            <div>
+              <label for="measuredAt">Data e hora da medição</label>
+              <input id="measuredAt" type="datetime-local">
+            </div>
+            <div>
+              <label for="photo">Anexo de foto</label>
+              <input id="photo" type="file" accept="image/*" capture="environment">
+              <p class="note">No celular, a câmera abrirá automaticamente.</p>
+            </div>
+          </div>
+
+          <label for="notes">Observações</label>
+          <textarea id="notes" placeholder="Observações sobre o ponto"></textarea>
+
+          <div class="actions">
+            <a class="btn btn-secondary" href="#location">← Voltar</a>
+            <button class="btn btn-primary" type="submit">Salvar metal</button>
+            <a class="btn btn-ghost" href="#view">Ver registros</a>
+          </div>
+        </form>
+        <div id="toast" class="pill" style="opacity:0; transition:.3s opacity; margin-top:10px;">Salvo!</div>
+      </div>
+      <div class="footer-space"></div>
+    </section>
+
+    <!-- VIEW -->
+    <section id="view" class="page" hidden>
+      <div class="card">
+        <h2>Registros</h2>
+        <div class="actions">
+          <button id="btnExport" class="btn btn-primary">Exportar CSV</button>
+          <button id="btnDeleteAll" class="btn btn-danger">Excluir todos os dados</button>
+          <a class="btn btn-secondary" href="#metal">Adicionar novo metal</a>
+        </div>
+        <div class="tablewrap" style="margin-top:14px">
+          <table>
+            <thead>
+              <tr>
+                <th>Cliente/Projeto</th>
+                <th>Local</th>
+                <th>Metal</th>
+                <th>Marca</th>
+                <th>Modelo</th>
+                <th>Tempo (s)</th>
+                <th>Volume (mL)</th>
+                <th>Vazão (L/min)</th>
+                <th>Data/Hora</th>
+                <th>Obs.</th>
+                <th>Foto</th>
+              </tr>
+            </thead>
+            <tbody id="tblBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+  </div>
+
+  <script type="module" src="./app.js"></script>
+</body>
+</html>

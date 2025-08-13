@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Registros</title>
+<style>
+body{font-family:'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background:#f4f6f8; margin:0; padding:0;}
+.container{max-width:900px;margin:auto;padding:20px;}
+h1{color:#0d6efd;text-align:center;}
+table{border-collapse:collapse;width:100%;overflow-x:auto;background:white; border-radius:8px; box-shadow:0 2px 6px rgba(0,0,0,0.1);}
+th,td{border:1px solid #ccc;padding:6px;text-align:left;font-size:14px;}
+img{max-width:50px;max-height:50px;}
+button{padding:10px;margin:5px;border:none;border-radius:6px;background:#0d6efd;color:white;cursor:pointer;transition:0.3s;}
+button:hover{background:#0b5ed7;}
+@media (max-width:480px){table,th,td{font-size:12px;}}
+</style>
+</head>
+<body>
+<div class="container">
+<h1>Registros</h1>
+<button onclick="exportarCSV()">Exportar CSV</button>
+<button onclick="apagarTudo()">Excluir Todos</button>
+<table id="tabela"><thead><tr><th>Cliente</th><th>Projeto</th><th>Local</th><th>Tipo</th><th>Qtd</th><th>Número</th><th>Marca</th><th>Modelo</th><th>Tempo (s)</th><th>Volume (mL)</th><th>Vazão (L/min)</th><th>Data/Hora</th><th>Obs</th><th>Foto</th></tr></thead><tbody></tbody></table>
+<a href="index.html">Voltar</a>
+</div>
+<script>
+function carregar(){const registros=JSON.parse(localStorage.getItem('registros')||'[]');const tbody=document.querySelector('#tabela tbody');tbody.innerHTML='';registros.forEach(r=>{const tr=document.createElement('tr');tr.innerHTML=`<td>${r.cliente.nome}</td><td>${r.cliente.projeto}</td><td>${r.local.andar} / ${r.local.setor} / ${r.local.local}</td><td>${r.tipo}</td><td>${r.quantidade}</td><td>${r.numero}</td><td>${r.marca}</td><td>${r.modelo}</td><td>${r.tempo}</td><td>${r.volume_ml}</td><td>${r.vazao_l_min}</td><td>${r.dataHora}</td><td>${r.observacoes}</td><td>${r.foto?`<img src='${r.foto}'>`:''}</td>`;tbody.appendChild(tr);});}
+function exportarCSV(){const registros=JSON.parse(localStorage.getItem('registros')||'[]');if(!registros.length){alert('Sem registros');return;}const cab=['Cliente','Projeto','Local','Tipo','Qtd','Número','Marca','Modelo','Tempo (s)','Volume (mL)','Vazão (L/min)','Data/Hora','Obs'];const linhas=registros.map(r=>[r.cliente.nome,r.cliente.projeto,`${r.local.andar} / ${r.local.setor} / ${r.local.local}`,r.tipo,r.quantidade,r.numero,r.marca,r.modelo,r.tempo,r.volume_ml,r.vazao_l_min,r.dataHora,r.observacoes].join(','));const csv=[cab.join(','),...linhas].join('\n');const blob=new Blob([csv],{type:'text/csv'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download='registros.csv';a.click();URL.revokeObjectURL(url);}
+function apagarTudo(){if(confirm('Tem certeza que deseja excluir todos os registros?')){localStorage.removeItem('registros');carregar();}}
+carregar();
+</script>
+</body>
+</html>
