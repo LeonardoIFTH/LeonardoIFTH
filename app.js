@@ -1,6 +1,21 @@
 
 import * as DB from './db.js';
 const $=(s,c=document)=>c.querySelector(s); const $$=(s,c=document)=>Array.from(c.querySelectorAll(s));
+// ----- Device isolation -----
+function getOrCreateDeviceId(){
+  try{
+    let id = localStorage.getItem('ifth_device_id');
+    if(!id){
+      id = ([1e7]+-1e3+-4e3+-8e3+-1e11).replace(/[018]/g, c =>
+        (c ^ crypto.getRandomValues(new Uint8Array(1))[0] & 15 >> c / 4).toString(16)
+      );
+      localStorage.setItem('ifth_device_id', id);
+    }
+    return id;
+  }catch{ return 'device-fallback'; }
+}
+const DEVICE_ID = getOrCreateDeviceId();
+
 const PLACES=['banheiro feminino','banheiro masculino','lavabo masculino','lavabo feminino','banheiro manutenção','lavabo manutenção','pne','dml','vestiário','copa','restaurante','outro'];
 const METAL_TYPES=['torneira','bacia sanitária','ducha higiênica','mictório','chuveiro','bebedouro','filtro de água','lava louças','lava roupas','forno auto limpante','cafeteira','maquina grande de venda de café','outro'];
 
@@ -29,7 +44,7 @@ async function init(){
     e.preventDefault();
     const name=$('#clientName').value.trim(); const proj=$('#projectNumber').value.trim();
     if(!name){ alert('Informe o nome do cliente'); return; }
-    currentClientId=await DB.add('clients',{name, projectNumber: proj, createdAt: Date.now()});
+    currentClientId=await DB.add('clients', { deviceId: DEVICE_ID, name, projectNumber: proj, createdAt: Date.now()});
     saveState(); $('#clientForm').reset(); show('location');
   });
 
@@ -40,7 +55,7 @@ async function init(){
     e.preventDefault();
     if(!currentClientId){ alert('Cadastre um cliente.'); show('client'); return; }
     const tower=$('#tower').value.trim(); const floor=$('#floor').value.trim(); const sector=$('#sector').value.trim(); const place=$('#place').value; const placeOther=(place==='outro')?$('#placeOther').value.trim():'';
-    currentLocationId=await DB.add('locations',{clientId: currentClientId, tower, floor, sector, place, placeOther, createdAt: Date.now()});
+    currentLocationId=await DB.add('locations', { deviceId: DEVICE_ID, clientId: currentClientId, tower, floor, sector, place, placeOther, createdAt: Date.now()});
     saveState(); $('#locationForm').reset(); $('#placeOtherWrap').hidden=true; show('metal');
   });
 
@@ -57,7 +72,7 @@ async function init(){
     const measuredAt=new Date().toISOString();
     const photoFile=$('#photo').files?.[0]; let photoDataUrl=null; try{ photoDataUrl=await fileToDataURL(photoFile);}catch{}
     let flowLpm=null; if(volumeMl>0 && timeSeconds>0){ const liters=volumeMl/1000; flowLpm=Math.round(((liters/timeSeconds)*60)*1000)/1000; }
-    const payload={locationId: currentLocationId, type, quantity:isNaN(qty)?1:qty, number, brand, model, notes, timeSeconds:isNaN(timeSeconds)?0:timeSeconds, volumeMl:isNaN(volumeMl)?0:volumeMl, flowLpm, measuredAt, photoDataUrl, createdAt: Date.now()};
+    const payload={deviceId: DEVICE_ID, locationId: currentLocationId, type, quantity:isNaN(qty)?1:qty, number, brand, model, notes, timeSeconds:isNaN(timeSeconds)?0:timeSeconds, volumeMl:isNaN(volumeMl)?0:volumeMl, flowLpm, measuredAt, photoDataUrl, createdAt: Date.now()};
     await DB.add('metals', payload);
     $('#metalForm').reset(); resetTimer(); $('#metalType').value=type; renderMetalFields();
     const t=$('#toast'); t.textContent='Metal salvo!'; t.style.opacity=1; setTimeout(()=>t.style.opacity=0,1400);
@@ -67,7 +82,7 @@ async function init(){
   if('serviceWorker' in navigator){ try{ navigator.serviceWorker.register('./sw.js'); }catch(e){} }
 }
 function renderMetalFields(){ const t=$('#metalType').value; const showTimer=(t==='torneira'||t==='chuveiro'||t==='outro'); $('#timerWrap').hidden=!showTimer; $('#volumeWrap').hidden=!showTimer; $('#numberWrap').hidden=!(t==='torneira'||t==='outro'); $('#brandWrap').hidden=(t==='ducha higiênica'); $('#modelWrap').hidden=(t==='ducha higiênica'); }
-async function renderTable(){ const tbody=$('#tblBody'); tbody.innerHTML=''; const rows=await DB.getAll('metals','createdAt',null,'prev'); const locs=await DB.getAll('locations'); const clients=await DB.getAll('clients');
+async function renderTable(){ const tbody=$('#tblBody'); tbody.innerHTML=''; let rows=await DB.getAll('metals','createdAt',null,'prev'); rows = rows.filter(r => r.deviceId === DEVICE_ID); const locs=await DB.getAll('locations'); const clients=await DB.getAll('clients');
   for(const m of rows){ const loc=locs.find(l=>l.id===m.locationId); const cli=loc?clients.find(c=>c.id===loc.clientId):null; const place=loc?(loc.place==='outro'?(loc.placeOther||'outro'):loc.place):'-';
     const tr=document.createElement('tr'); tr.innerHTML=`
       <td>${cli?(cli.name||'-'):'-'}</td>
@@ -91,7 +106,7 @@ async function renderTable(){ const tbody=$('#tblBody'); tbody.innerHTML=''; con
 function formatDateNoComma(d){ const p=(n)=>String(n).padStart(2,'0'); return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`; }
 function toCSVRow(arr){ return arr.map(v=>{ if(v==null) v=''; v=String(v); if(v.includes('"')||v.includes(',')||v.includes('\n')) v='"'+v.replace(/"/g,'""')+'"'; return v; }).join(','); }
 document.getElementById('btnExport')?.addEventListener('click', async ()=>{
-  const rows=await DB.getAll('metals','createdAt',null,'next'); const locs=await DB.getAll('locations'); const clients=await DB.getAll('clients');
+  let rows=await DB.getAll('metals','createdAt',null,'next'); rows = rows.filter(r => r.deviceId === DEVICE_ID); const locs=await DB.getAll('locations'); const clients=await DB.getAll('clients');
   const header=['Cliente','Projeto','Torre','Andar','Setor','Local','Metal','Marca','Modelo','Tempo (s)','Volume (mL)','Vazão (L/min)','Data/Hora','Observações'];
   const lines=[toCSVRow(header)];
   for(const m of rows){ const loc=locs.find(l=>l.id===m.locationId); const cli=loc?clients.find(c=>c.id===loc.clientId):null; const place=loc?(loc.place==='outro'?(loc.placeOther||'outro'):loc.place):'';
@@ -105,6 +120,15 @@ document.getElementById('btnExport')?.addEventListener('click', async ()=>{
   }
   const blob=new Blob([lines.join('\n')],{type:'text/csv'}); const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download='registros.csv'; a.click(); setTimeout(()=>URL.revokeObjectURL(url),1500);
 });
-document.getElementById('btnDeleteAll')?.addEventListener('click', async ()=>{ if(confirm('Tem certeza que deseja excluir todos os dados?')){ await DB.clearAll(); localStorage.removeItem('hidro_state'); location.reload(); } });
+document.getElementById('btnDeleteAll')?.addEventListener('click', async ()=>{
+  if(!confirm('Excluir todos os dados deste dispositivo?')) return;
+  // Delete metals for this device
+  const metals = await DB.getAll('metals'); for(const m of metals){ if(m.deviceId === DEVICE_ID){ await DB.del('metals', m.id); } }
+  // Optionally clean up locations/clients with this deviceId (not strictly required, but good hygiene)
+  const locs = await DB.getAll('locations'); for(const l of locs){ if(l.deviceId === DEVICE_ID){ await DB.del('locations', l.id); } }
+  const clients = await DB.getAll('clients'); for(const c of clients){ if(c.deviceId === DEVICE_ID){ await DB.del('clients', c.id); } }
+  localStorage.removeItem('hidro_state');
+  location.reload();
+});
 window.addEventListener('hashchange', ()=>{ const id=location.hash.slice(1)||'client'; show(id); });
 document.addEventListener('DOMContentLoaded', init);

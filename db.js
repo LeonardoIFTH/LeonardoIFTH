@@ -11,3 +11,5 @@ async function tx(store,mode='readonly'){ const db=await openDB(); return db.tra
 export async function add(store,value){ const s=await tx(store,'readwrite'); return new Promise((res,rej)=>{ const r=s.add(value); r.onsuccess=()=>res(r.result); r.onerror=()=>rej(r.error); }); }
 export async function getAll(store,indexName=null,query=null,dir='next'){ const s=await tx(store); return new Promise((res,rej)=>{ const out=[]; let src=s; if(indexName) src=s.index(indexName); const r=src.openCursor(query,dir); r.onsuccess=()=>{ const c=r.result; if(c){ out.push(c.value); c.continue(); } else res(out); }; r.onerror=()=>rej(r.error); }); }
 export async function clearAll(){ const db=await openDB(); return Promise.all(['clients','locations','metals'].map(n=> new Promise((res,rej)=>{ const r=db.transaction(n,'readwrite').objectStore(n).clear(); r.onsuccess=()=>res(); r.onerror=()=>rej(r.error);}))); }
+
+export async function del(store, key){ const s=await tx(store,'readwrite'); return new Promise((res,rej)=>{ const r=s.delete(key); r.onsuccess=()=>res(); r.onerror=()=>rej(r.error); }); }
