@@ -4,7 +4,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Hidro PWA</title>
+  <title>IFTH Metais</title>
   <link rel="manifest" href="./manifest.json">
   <link rel="stylesheet" href="./styles.css">
   <meta name="theme-color" content="#0e766e">
@@ -13,7 +13,7 @@
   <div class="appbar">
     <div class="container brand">
       <img src="./icons/icon-192.png" alt="Hidro">
-      <h1>Hidro PWA – Cadastro e Vazão</h1>
+      <h1>IFTH Metais</h1>
     </div>
   </div>
 
@@ -32,9 +32,13 @@
         <h2>Cadastro do Cliente</h2>
         <form id="clientForm">
           <label for="clientName">Nome do cliente</label>
-          <input id="clientName" placeholder="Ex.: Construtora Exemplo" required>
+          <input id="clientName"
+          <label for="technicianName">Técnico em campo</label>
+          <input id="technicianName" placeholder="Ex.: João da Silva" placeholder="Ex.: Itaú" required>
           <label for="projectNumber">Número do projeto</label>
-          <input id="projectNumber" placeholder="Ex.: 2025-001">
+          <input id="projectNumber" placeholder="Ex.: 131.25">
+          <label for="technician">Técnico em campo</label>
+          <input id="technician" placeholder="Ex.: João Silva">
           <div class="actions">
             <button class="btn btn-primary" type="submit">Salvar cliente e continuar</button>
           </div>
@@ -102,7 +106,7 @@
             </div>
             <div id="modelWrap">
               <label for="model">Modelo</label>
-              <input id="model" placeholder="Ex.: Link 1177.C">
+              <input id="model" placeholder="Ex.: Sensor">
             </div>
           </div>
 
@@ -125,13 +129,7 @@
             </div>
           </div>
 
-          <div class="row row-2">
-            <div>
-              <label for="measuredAt">Data e hora da medição</label>
-              <input id="measuredAt" type="datetime-local">
-            </div>
-            <div>
-              <label for="photo">Anexo de foto</label>
+          <div class="row row-2"><div><label for="photo">Anexo de foto</label>
               <input id="photo" type="file" accept="image/*" capture="environment">
               <p class="note">No celular, a câmera abrirá automaticamente.</p>
             </div>
@@ -165,7 +163,7 @@
             <thead>
               <tr>
                 <th>Cliente/Projeto</th>
-                <th>Local</th>
+                <th>Andar</th><th>Setor</th><th>Local</th>
                 <th>Metal</th>
                 <th>Marca</th>
                 <th>Modelo</th>

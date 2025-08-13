@@ -1,5 +1,5 @@
 
-const CACHE = 'hidro-pwa-v5';
+const CACHE = 'hidro-pwa-v6';
 const ASSETS = [
   './',
   './index.html',

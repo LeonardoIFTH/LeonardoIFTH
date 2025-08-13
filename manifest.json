@@ -1,6 +1,6 @@
 {
-  "name": "Hidro PWA",
-  "short_name": "Hidro",
+  "name": "IFTH Metais",
+  "short_name": "IFTH Metais",
   "start_url": "./",
   "display": "standalone",
   "background_color": "#0e766e",

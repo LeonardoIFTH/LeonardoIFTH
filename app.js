@@ -16,6 +16,7 @@ const METAL_TYPES = [
 ];
 
 let currentClientId = null;
+let currentTechnician = null;
 let currentLocationId = null;
 
 // Persist simple navigation state so return to app keeps context
@@ -23,10 +24,11 @@ try{
   const saved = JSON.parse(localStorage.getItem('hidro_state')||'{}');
   if(saved.clientId) currentClientId = saved.clientId;
   if(saved.locationId) currentLocationId = saved.locationId;
+  if(saved.technician) currentTechnician = saved.technician;
 }catch{}
 
 function saveState(){
-  localStorage.setItem('hidro_state', JSON.stringify({clientId: currentClientId, locationId: currentLocationId}));
+  localStorage.setItem('hidro_state', JSON.stringify({clientId: currentClientId, locationId: currentLocationId, technician: currentTechnician}));
 }
 
 // File to dataURL promise (reliable on mobile)
@@ -73,6 +75,12 @@ function resetTimer(){
 }
 
 function show(pageId){
+  // measuredAtView refresh and technician badge
+  if(pageId==='metal'){
+    const mv = $('#measuredAtView');
+    if(mv){ mv.value = new Date().toLocaleString(); }
+  }
+
   // Update measuredAtView on metal page
   if(pageId==='metal'){
     const now=new Date(); const f=now.toLocaleString();
@@ -130,8 +138,9 @@ async function init(){
     e.preventDefault();
     const name = $('#clientName').value.trim();
     const proj = $('#projectNumber').value.trim();
+    const tech = $('#technicianName').value.trim();
     if(!name){ alert('Informe o nome do cliente'); return; }
-    currentClientId = await DB.add('clients', {name, projectNumber: proj, createdAt: Date.now()});
+    currentClientId = await DB.add('clients', {name, projectNumber: proj, technician: tech, createdAt: Date.now()});
     saveState();
     // reset and go to location page
     $('#clientForm').reset();
@@ -287,8 +296,12 @@ async function renderTable(){
 
     const tr = document.createElement('tr');
     tr.innerHTML = `
-      <td>${cli ? `${cli.name} / ${cli.projectNumber || '-'}` : '-'}</td>
-      <td>${whereStr}</td>
+      <td>${cli ? (cli.name || '-') : '-'}</td>
+      <td>${cli ? (cli.projectNumber || '-') : '-'}</td>
+      <td>${cli ? (cli.technician || '-') : '-'}</td>
+      <td>${loc ? (loc.floor || '-') : '-'}</td>
+      <td>${loc ? (loc.sector || '-') : '-'}</td>
+      <td>${loc ? (loc.place==='outro' ? (loc.placeOther || 'outro') : loc.place) : '-'}</td>
       <td>${m.type}${m.quantity ? ` (${m.quantity})` : ''}${m.number ? ` • Nº ${m.number}` : ''}</td>
       <td>${m.brand || '-'}</td>
       <td>${m.model || '-'}</td>
@@ -317,14 +330,14 @@ function toCSVRow(arr){
 $('#btnExport')?.addEventListener('click', async ()=>{
   const rows = await DB.getAll('metals', 'createdAt', null, 'next'); // old to new in CSV
   const locs = await DB.getAll('locations'); const clients = await DB.getAll('clients');
-  const header = ['Cliente','Projeto','Andar','Setor','Local','Tipo','Quantidade','Nº','Marca','Modelo','Tempo (s)','Volume (mL)','Vazão (L/min)','Data/Hora','Observações'];
+  const header = ['Cliente','Projeto','Técnico','Andar','Setor','Local','Tipo','Quantidade','Nº','Marca','Modelo','Tempo (s)','Volume (mL)','Vazão (L/min)','Data/Hora','Observações'];
   const lines = [toCSVRow(header)];
   for(const m of rows){
     const loc = locs.find(l=> l.id === m.locationId);
     const cli = loc ? clients.find(c=> c.id === loc.clientId) : null;
     const place = loc ? (loc.place==='outro' ? (loc.placeOther || 'outro') : loc.place) : '';
     lines.push(toCSVRow([
-      cli?.name || '', cli?.projectNumber || '', loc?.floor || '', loc?.sector || '', place || '',
+      cli?.name || '', cli?.projectNumber || '', loc?.floor || '', loc?.sector || '', loc?.floor || '', loc?.sector || '', place || '',
       m.type || '', m.quantity || '', m.number || '', m.brand || '', m.model || '',
       m.timeSeconds || 0, m.volumeMl || 0, (m.flowLpm!=null? m.flowLpm.toFixed(3):''), m.measuredAt || '', m.notes || ''
     ]));
