@@ -2,23 +2,21 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <title>IFTH Metais</title>
-  <link rel="manifest" href="./manifest.json">
-  <link rel="stylesheet" href="./styles.css">
-  <meta name="theme-color" content="#0e766e">
+  <link rel="manifest" href="./manifest.json"/>
+  <link rel="stylesheet" href="./styles.css"/>
+  <meta name="theme-color" content="#0e766e"/>
 </head>
 <body>
   <div class="appbar">
     <div class="container brand">
-      <img src="./icons/icon-192.png" alt="Hidro">
+      <img src="./icons/icon-192.png" alt="IFTH Metais">
       <h1>IFTH Metais</h1>
     </div>
   </div>
-
   <div class="container">
-    <div id="envWarn" class="pill" style="display:none; margin-bottom:10px;"></div>
     <nav class="nav">
       <a href="#client" class="active">Cliente</a>
       <a href="#location">Local</a>
@@ -26,33 +24,31 @@
       <a href="#view">Registros</a>
     </nav>
 
-    <!-- CLIENT -->
     <section id="client" class="page">
       <div class="card">
         <h2>Cadastro do Cliente</h2>
         <form id="clientForm">
           <label for="clientName">Nome do cliente</label>
-          <input id="clientName"
-          <label for="technicianName">Técnico em campo</label>
-          <input id="technicianName" placeholder="Ex.: João da Silva" placeholder="Ex.: Itaú" required>
+          <input id="clientName" placeholder="Ex.: Itaú" required>
           <label for="projectNumber">Número do projeto</label>
           <input id="projectNumber" placeholder="Ex.: 131.25">
-          <label for="technician">Técnico em campo</label>
-          <input id="technician" placeholder="Ex.: João Silva">
           <div class="actions">
-            <button class="btn btn-primary" type="submit">Salvar cliente e continuar</button>
+            <button class="btn" style="background:linear-gradient(90deg,#0ea5a6,#22d3ee);border:none;color:#012a2b;font-weight:700" type="submit">Salvar cliente e continuar</button>
           </div>
           <p class="note">Após salvar o cliente, você irá para o cadastro do Local.</p>
         </form>
       </div>
     </section>
 
-    <!-- LOCATION -->
     <section id="location" class="page" hidden>
       <div class="card">
         <h2>Cadastro do Local</h2>
         <form id="locationForm">
-          <div class="row row-2">
+          <div class="row row-3">
+            <div>
+              <label for="tower">Torre</label>
+              <input id="tower" placeholder="Ex.: A">
+            </div>
             <div>
               <label for="floor">Andar</label>
               <input id="floor" placeholder="Ex.: 5º">
@@ -73,14 +69,13 @@
             <input id="placeOther" placeholder="Ex.: Cozinha experimental">
           </div>
           <div class="actions">
-            <a class="btn btn-secondary" href="#client">← Voltar</a>
-            <button class="btn btn-primary" type="submit">Salvar local e continuar</button>
+            <a class="btn" href="#client">← Voltar</a>
+            <button class="btn" style="background:linear-gradient(90deg,#0ea5a6,#22d3ee);border:none;color:#012a2b;font-weight:700" type="submit">Salvar local e continuar</button>
           </div>
         </form>
       </div>
     </section>
 
-    <!-- METAL -->
     <section id="metal" class="page" hidden>
       <div class="card">
         <h2>Cadastro de Metal</h2>
@@ -114,22 +109,28 @@
             <div>
               <label>Cronômetro</label>
               <div class="timer">
-                <div class="timeface" id="timeface">00:00</div>
-                <button type="button" class="btn btn-primary" id="btnStart">Iniciar</button>
-                <button type="button" class="btn btn-secondary" id="btnStop">Parar</button>
-                <button type="button" class="btn btn-ghost" id="btnReset">Zerar</button>
+                <div class="timeface" id="timeface">00:00<small>mm:ss</small></div>
+                <button type="button" class="btn" id="btnStart" style="background:linear-gradient(90deg,#0ea5a6,#22d3ee);border:none;color:#012a2b;font-weight:700">Iniciar</button>
+                <button type="button" class="btn" id="btnStop">Parar</button>
+                <button type="button" class="btn" id="btnReset">Zerar</button>
               </div>
               <input id="timeSeconds" type="hidden" value="0">
-              <p class="note">Use o cronômetro para medir o tempo (s) e calcule a vazão a partir do volume medido.</p>
+              <p class="note">Use o cronômetro para medir o tempo (s). O cálculo de L/min usa o volume em mL.</p>
             </div>
             <div id="volumeWrap">
               <label for="volumeMl">Volume medido (mL)</label>
               <input id="volumeMl" type="number" min="0" step="1" placeholder="Ex.: 2000">
-              <p class="note">O app converte mL → L automaticamente para calcular L/min.</p>
+              <p class="note">O app converte mL → L automaticamente.</p>
             </div>
           </div>
 
-          <div class="row row-2"><div><label for="photo">Anexo de foto</label>
+          <div class="row row-2">
+            <div>
+              <label>Data/Hora (auto)</label>
+              <input id="measuredAtView" disabled placeholder="Gerada automaticamente no envio">
+            </div>
+            <div>
+              <label for="photo">Anexo de foto</label>
               <input id="photo" type="file" accept="image/*" capture="environment">
               <p class="note">No celular, a câmera abrirá automaticamente.</p>
             </div>
@@ -139,31 +140,33 @@
           <textarea id="notes" placeholder="Observações sobre o ponto"></textarea>
 
           <div class="actions">
-            <a class="btn btn-secondary" href="#location">← Voltar</a>
-            <button class="btn btn-primary" type="submit">Salvar metal</button>
-            <a class="btn btn-ghost" href="#view">Ver registros</a>
+            <a class="btn" href="#location">← Voltar</a>
+            <button class="btn" style="background:linear-gradient(90deg,#0ea5a6,#22d3ee);border:none;color:#012a2b;font-weight:700" type="submit">Salvar metal</button>
+            <a class="btn" href="#view">Ver registros</a>
           </div>
         </form>
-        <div id="toast" class="pill" style="opacity:0; transition:.3s opacity; margin-top:10px;">Salvo!</div>
+        <div id="toast" style="opacity:0;transition:.3s opacity;margin-top:10px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.08);padding:8px 12px;border-radius:12px;display:inline-block">Salvo!</div>
       </div>
-      <div class="footer-space"></div>
     </section>
 
-    <!-- VIEW -->
     <section id="view" class="page" hidden>
       <div class="card">
         <h2>Registros</h2>
         <div class="actions">
-          <button id="btnExport" class="btn btn-primary">Exportar CSV</button>
-          <button id="btnDeleteAll" class="btn btn-danger">Excluir todos os dados</button>
-          <a class="btn btn-secondary" href="#metal">Adicionar novo metal</a>
+          <button id="btnExport" class="btn" style="background:linear-gradient(90deg,#0ea5a6,#22d3ee);border:none;color:#012a2b;font-weight:700">Exportar CSV</button>
+          <button id="btnDeleteAll" class="btn" style="background:#ef4444;border:none;color:#2b0a06;font-weight:700">Excluir todos os dados</button>
+          <a class="btn" href="#metal">Adicionar novo metal</a>
         </div>
         <div class="tablewrap" style="margin-top:14px">
           <table>
             <thead>
               <tr>
-                <th>Cliente/Projeto</th>
-                <th>Andar</th><th>Setor</th><th>Local</th>
+                <th>Cliente</th>
+                <th>Projeto</th>
+                <th>Torre</th>
+                <th>Andar</th>
+                <th>Setor</th>
+                <th>Local</th>
                 <th>Metal</th>
                 <th>Marca</th>
                 <th>Modelo</th>
@@ -180,9 +183,7 @@
         </div>
       </div>
     </section>
-
   </div>
-
   <script type="module" src="./app.js"></script>
 </body>
 </html>
