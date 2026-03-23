@@ -64,7 +64,7 @@ function startTimer(){ if(timerInt) return; timerStart=performance.now()-elapsed
 function stopTimer(){ if(!timerInt) return; clearInterval(timerInt); timerInt=null; elapsedMs=performance.now()-timerStart; updateTimeface(); const tf=$('#timeface'); if(tf) tf.classList.remove('running'); showVolumePopup(); }
 function resetTimer(){ clearInterval(timerInt); timerInt=null; elapsedMs=0; timerStart=0; updateTimeface(); const tf=$('#timeface'); if(tf) tf.classList.remove('running'); hideVolumePopup(); }
 
-function setMode(mode){
+function setMode(mode, activeId=''){
   const links = $$('.nav a');
   links.forEach(a=>{ a.classList.remove('active'); a.style.display='none'; });
 
@@ -72,20 +72,18 @@ function setMode(mode){
   const home = $$('.nav a.home')[0];
   if(home){ home.style.display='flex'; }
 
+  if(mode === 'metal'){
+    $$('.nav a.metal-flow').forEach(a=>{ a.style.display='flex'; });
+  }
+
   // Registros aparece quando não está em home
   const registros = $$('.nav a.registros')[0];
   if(registros){
-    if(mode === 'home'){
-      registros.style.display = 'none';
-    } else {
-      registros.style.display = 'flex';
-    }
+    registros.style.display = mode === 'home' ? 'none' : 'flex';
   }
 
-  // Marcar ativo (home, metal, hidrometer, visitreport, view)
-  let activeClass = mode;
-  if(mode === 'view') activeClass = 'registros';
-  const current = $$('.nav a.'+activeClass)[0];
+  const effectiveId = activeId === 'view' ? 'view' : activeId;
+  const current = effectiveId ? $(`.nav a[href="#${effectiveId}"]`) : null;
   if(current){ current.classList.add('active'); }
 }
 
@@ -97,11 +95,11 @@ function show(id){
     const tab=$$('.nav a[href="#'+id+'"][class*="nav-link"]')[0];
     if(tab) tab.classList.add('active');
   }
-  if(['client','location','metal','view'].includes(id)) setMode('metal');
-  if(id==='hidrometer') setMode('hidrometer');
-  if(id==='visitreport') setMode('visitreport');
-  if(id==='view') setMode('view');
-  if(id==='home') setMode('home');
+  if(['client','location','metal','view'].includes(id)) setMode('metal', id);
+  if(id==='hidrometer') setMode('hidrometer', id);
+  if(id==='visitreport') setMode('visitreport', id);
+  if(id==='view') setMode('view', id);
+  if(id==='home') setMode('home', id);
   if(id==='metal'){ const mv=$('#measuredAtView'); if(mv) mv.value=new Date().toLocaleString(); }
   if(id==='view') renderTable();
   if(id==='visitreport'){ 
@@ -250,7 +248,7 @@ async function init(){
   });
 
   $('#btnHidroCancel').addEventListener('click', ()=>show('home'));
-  $('#btnHidroExport').addEventListener('click', async ()=>{
+  $('#btnHidroExport')?.addEventListener('click', async ()=>{
     const entries = await DB.getAll('hidrometers','createdAt',null,'next');
     if(!entries.length){ alert('Nenhum registro de hidrômetro para exportar.'); return; }
     
