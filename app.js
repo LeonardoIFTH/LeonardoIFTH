@@ -16,7 +16,7 @@ function getOrCreateDeviceId(){
 }
 const DEVICE_ID = getOrCreateDeviceId();
 
-const PLACES=['banheiro feminino','banheiro masculino','lavabo masculino','lavabo feminino','banheiro manutenção','lavabo manutenção','pne','dml','vestiário','copa','restaurante','outro'];
+const PLACES=['banheiro feminino','banheiro masculino','lavabo feminino','lavabo masculino','vestiário feminino','vestiário masculino','pne','dml','copa','restaurante','quiosque','refeitório','outro'];
 const METAL_TYPES=['torneira','bacia sanitária','ducha higiênica','mictório','chuveiro','bebedouro','filtro de água','lava louças','lava roupas','forno auto limpante','cafeteira','maquina grande de venda de café','outro'];
 
 let currentClientId=null; let currentLocationId=null;
@@ -25,11 +25,43 @@ function saveState(){ localStorage.setItem('hidro_state', JSON.stringify({client
 
 function fileToDataURL(file){ return new Promise((resolve,reject)=>{ if(!file) return resolve(null); const r=new FileReader(); r.onload=()=>resolve(r.result); r.onerror=()=>reject(r.error); r.readAsDataURL(file); }); }
 
+async function fileToJpegDataURL(file){
+  if(!file) return null;
+  try {
+    if(file.type === 'image/jpeg' || file.type === 'image/jpg'){
+      return await fileToDataURL(file);
+    }
+    const dataUrl = await fileToDataURL(file);
+    return await new Promise((resolve, reject)=>{
+      const img = new Image();
+      img.onload=()=>{
+        const canvas = document.createElement('canvas');
+        canvas.width = img.naturalWidth;
+        canvas.height = img.naturalHeight;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img,0,0);
+        canvas.toBlob(blob=>{
+          if(!blob){ reject(new Error('Falha ao converter imagem para JPEG.')); return; }
+          const reader = new FileReader();
+          reader.onload=()=>resolve(reader.result);
+          reader.onerror=()=>reject(reader.error);
+          reader.readAsDataURL(blob);
+        }, 'image/jpeg',0.92);
+      };
+      img.onerror=()=>reject(new Error('Não foi possível carregar a imagem para conversão.'));
+      img.src = dataUrl;
+    });
+  } catch(err){
+    console.error('Erro ao converter imagem para JPEG:', err);
+    return null;
+  }
+}
+
 let timerInt=null; let timerStart=0; let elapsedMs=0;
-function updateTimeface(){ const s=Math.floor(elapsedMs/1000); const mm=String(Math.floor(s/60)).padStart(2,'0'); const ss=String(s%60).padStart(2,'0'); const tf=$('#timeface'); if(tf){ tf.childNodes[0].nodeValue = `${mm}:${ss}`; tf.style.setProperty('--progress', ((s%60)/60*100).toFixed(1)); } $('#timeSeconds').value=s; }
-function startTimer(){ if(timerInt) return; timerStart=performance.now()-elapsedMs; timerInt=setInterval(()=>{ elapsedMs=performance.now()-timerStart; updateTimeface(); },200); const tf=$('#timeface'); if(tf) tf.classList.add('running'); }
-function stopTimer(){ if(!timerInt) return; clearInterval(timerInt); timerInt=null; elapsedMs=performance.now()-timerStart; updateTimeface(); const tf=$('#timeface'); if(tf) tf.classList.remove('running'); }
-function resetTimer(){ clearInterval(timerInt); timerInt=null; elapsedMs=0; timerStart=0; updateTimeface(); const tf=$('#timeface'); if(tf) tf.classList.remove('running'); }
+function updateTimeface(){ const totalMs = elapsedMs; const minutes = Math.floor(totalMs / 60000); const seconds = Math.floor((totalMs % 60000) / 1000); const cs = Math.floor((totalMs % 1000) / 10); const mm = String(minutes).padStart(2, '0'); const ss = String(seconds).padStart(2, '0'); const css = String(cs).padStart(2, '0'); const tf = $('#timeface'); if(tf){ tf.childNodes[0].nodeValue = `${mm}:${ss}:${css}`; tf.style.setProperty('--progress', ((seconds % 60) / 60 * 100).toFixed(1)); } $('#timeSeconds').value = Math.floor(totalMs / 1000); }
+function startTimer(){ if(timerInt) return; timerStart=performance.now()-elapsedMs; timerInt=setInterval(()=>{ elapsedMs=performance.now()-timerStart; updateTimeface(); },100); const tf=$('#timeface'); if(tf) tf.classList.add('running'); }
+function stopTimer(){ if(!timerInt) return; clearInterval(timerInt); timerInt=null; elapsedMs=performance.now()-timerStart; updateTimeface(); const tf=$('#timeface'); if(tf) tf.classList.remove('running'); showVolumePopup(); }
+function resetTimer(){ clearInterval(timerInt); timerInt=null; elapsedMs=0; timerStart=0; updateTimeface(); const tf=$('#timeface'); if(tf) tf.classList.remove('running'); hideVolumePopup(); }
 
 function show(id){ $$('.page').forEach(p=>p.hidden=true); $('#'+id).hidden=false; $$('.nav a').forEach(a=>a.classList.toggle('active', a.getAttribute('href')==='#'+id));
   if(id==='metal'){ const mv=$('#measuredAtView'); if(mv) mv.value=new Date().toLocaleString(); }
@@ -38,6 +70,9 @@ function show(id){ $$('.page').forEach(p=>p.hidden=true); $('#'+id).hidden=false
 
 async function init(){
   $$('.nav a').forEach(a=>a.addEventListener('click',e=>{e.preventDefault(); show(a.getAttribute('href').slice(1));}));
+
+  // Inicializa estado do metal
+  renderMetalFields();
 
   // Client
   $('#clientForm').addEventListener('submit', async (e)=>{
@@ -60,9 +95,25 @@ async function init(){
   });
 
   // Metal
-  const typeSel=$('#metalType'); METAL_TYPES.forEach(t=>{ const o=document.createElement('option'); o.value=t; o.textContent=t; typeSel.appendChild(o); });
+  const typeSel=$('#metalType');
+  const placeholderOption=document.createElement('option');
+  placeholderOption.value='';
+  placeholderOption.textContent='Selecione um metal';
+  placeholderOption.disabled=true;
+  placeholderOption.selected=true;
+  typeSel.appendChild(placeholderOption);
+  METAL_TYPES.forEach(t=>{ const o=document.createElement('option'); o.value=t; o.textContent=t; typeSel.appendChild(o); });
   typeSel.addEventListener('change', renderMetalFields);
-  $('#btnStart').addEventListener('click', startTimer); $('#btnStop').addEventListener('click', stopTimer); $('#btnReset').addEventListener('click', resetTimer); updateTimeface();
+  $('#btnStart').addEventListener('click', startTimer);
+  $('#btnStop').addEventListener('click', stopTimer);
+  $('#btnReset').addEventListener('click', resetTimer);
+  $('#volumeSave').addEventListener('click', () => {
+    const value = parseFloat($('#volumePopupInput').value);
+    if(!isNaN(value) && value >=0){ $('#volumeMl').value = value; hideVolumePopup(); }
+    else { alert('Informe um volume válido em mL'); $('#volumePopupInput').focus(); }
+  });
+  $('#volumeCancel').addEventListener('click', hideVolumePopup);
+  updateTimeface();
 
   $('#metalForm').addEventListener('submit', async (e)=>{
     e.preventDefault(); if(!currentLocationId){ alert('Cadastre um local.'); show('location'); return; }
@@ -70,18 +121,107 @@ async function init(){
     const number=$('#number').value.trim(); const brand=$('#brand').value.trim(); const model=$('#model').value.trim(); const notes=$('#notes').value.trim();
     const timeSeconds=parseInt($('#timeSeconds').value||'0',10); const volumeMl=parseFloat($('#volumeMl').value||'0');
     const measuredAt=new Date().toISOString();
-    const photoFile=$('#photo').files?.[0]; let photoDataUrl=null; try{ photoDataUrl=await fileToDataURL(photoFile);}catch{}
+    const photoFile=$('#photo').files?.[0]; let photoDataUrl=null;
+    try{ photoDataUrl = await fileToJpegDataURL(photoFile);}catch(err){ console.error('Falha na leitura da imagem:', err); photoDataUrl=null; }
     let flowLpm=null; if(volumeMl>0 && timeSeconds>0){ const liters=volumeMl/1000; flowLpm=Math.round(((liters/timeSeconds)*60)*1000)/1000; }
-    const payload={deviceId: DEVICE_ID, locationId: currentLocationId, type, quantity:isNaN(qty)?1:qty, number, brand, model, notes, timeSeconds:isNaN(timeSeconds)?0:timeSeconds, volumeMl:isNaN(volumeMl)?0:volumeMl, flowLpm, measuredAt, photoDataUrl, createdAt: Date.now()};
-    await DB.add('metals', payload);
-    $('#metalForm').reset(); resetTimer(); $('#metalType').value=type; renderMetalFields();
-    const t=$('#toast'); t.textContent='Metal salvo!'; t.style.opacity=1; setTimeout(()=>t.style.opacity=0,1400);
+    const payload={
+      deviceId: DEVICE_ID,
+      locationId: currentLocationId,
+      type,
+      quantity: isNaN(qty)?1:qty,
+      number,
+      brand,
+      model,
+      notes,
+      timeSeconds: isNaN(timeSeconds)?0:timeSeconds,
+      volumeMl: isNaN(volumeMl)?0:volumeMl,
+      flowLpm,
+      measuredAt,
+      photoDataUrl,
+      createdAt: Date.now()
+    };
+    try {
+      const id = await DB.add('metals', payload);
+      console.log('Metal salvo ID:', id, payload);
+      setMetalDefaults(type, brand, model);
+      $('#metalForm').reset(); resetTimer(); $('#metalType').value=''; renderMetalFields();
+      const t=$('#toast'); t.textContent='Metal salvo!'; t.style.opacity=1; setTimeout(()=>t.style.opacity=0,1400);
+      show('view');
+    } catch (err) {
+      console.error('Erro salvando metal:', err);
+      alert('Não foi possível salvar os dados. Verifique se o navegador permite IndexedDB.');
+    }
   });
 
   // SW
   if('serviceWorker' in navigator){ try{ navigator.serviceWorker.register('./sw.js'); }catch(e){} }
 }
-function renderMetalFields(){ const t=$('#metalType').value; const showTimer=(t==='torneira'||t==='chuveiro'||t==='outro'); $('#timerWrap').hidden=!showTimer; $('#volumeWrap').hidden=!showTimer; $('#numberWrap').hidden=!(t==='torneira'||t==='outro'); $('#brandWrap').hidden=(t==='ducha higiênica'); $('#modelWrap').hidden=(t==='ducha higiênica'); }
+function showVolumePopup(){ const popup=$('#volumePopup'); if(popup){ popup.classList.remove('hidden'); popup.setAttribute('aria-hidden','false'); $('#volumePopupInput').focus(); } }
+function hideVolumePopup(){ const popup=$('#volumePopup'); if(popup){ popup.classList.add('hidden'); popup.setAttribute('aria-hidden','true'); $('#volumePopupInput').value = ''; } }
+function getMetalDefaults(){
+  try { return JSON.parse(localStorage.getItem('metal_defaults') || '{}'); }
+  catch { return {}; }
+}
+function setMetalDefaults(type, brand, model){
+  if(!type) return;
+  const defaults = getMetalDefaults();
+  defaults[type] = {brand: brand || '', model: model || ''};
+  localStorage.setItem('metal_defaults', JSON.stringify(defaults));
+}
+function applyMetalDefaults(type){
+  const defaults = getMetalDefaults();
+  if(defaults[type]){
+    $('#brand').value = defaults[type].brand || '';
+    $('#model').value = defaults[type].model || '';
+  } else {
+    $('#brand').value = '';
+    $('#model').value = '';
+  }
+}
+function renderMetalFields(){
+  const t = $('#metalType').value;
+  const hasType = t !== '';
+  console.log('renderMetalFields called, t:', t, 'hasType:', hasType);
+  $('#quantityWrap').hidden = !hasType;
+  $('#numberWrap').hidden = !(hasType && (t === 'torneira' || t === 'outro'));
+
+  const showTimer = hasType && t === 'torneira';
+  console.log('showTimer:', showTimer);
+  const timerWrap = $('#timerWrap');
+  if(timerWrap){
+    timerWrap.hidden = !showTimer;
+    timerWrap.style.display = showTimer ? 'grid' : 'none';
+  }
+  const volumeWrap = $('#volumeWrap');
+  if(volumeWrap){
+    volumeWrap.hidden = true; // não mostra volume inline
+    volumeWrap.style.display = 'none';
+  }
+
+  const brandWrap = $('#brandWrap');
+  if(brandWrap){
+    brandWrap.hidden = t === 'ducha higiênica' || !hasType;
+    brandWrap.style.display = (t === 'ducha higiênica' || !hasType) ? 'none' : '';
+  }
+  const modelWrap = $('#modelWrap');
+  if(modelWrap){
+    modelWrap.hidden = t === 'ducha higiênica' || !hasType;
+    modelWrap.style.display = (t === 'ducha higiênica' || !hasType) ? 'none' : '';
+  }
+  $('#modelWrap').hidden = t === 'ducha higiênica' || !hasType;
+
+  const measuredAtRow = $('#measuredAtView').closest('.row');
+  if(measuredAtRow) measuredAtRow.hidden = !hasType;
+  $('#notes').hidden = !hasType;
+  $('#metal .actions').hidden = !hasType;
+
+  if(hasType){
+    applyMetalDefaults(t);
+  } else {
+    $('#brand').value = '';
+    $('#model').value = '';
+  }
+}
 async function renderTable(){ const tbody=$('#tblBody'); tbody.innerHTML=''; let rows=await DB.getAll('metals','createdAt',null,'prev'); rows = rows.filter(r => r.deviceId === DEVICE_ID); const locs=await DB.getAll('locations'); const clients=await DB.getAll('clients');
   for(const m of rows){ const loc=locs.find(l=>l.id===m.locationId); const cli=loc?clients.find(c=>c.id===loc.clientId):null; const place=loc?(loc.place==='outro'?(loc.placeOther||'outro'):loc.place):'-';
     const tr=document.createElement('tr'); tr.innerHTML=`

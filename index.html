@@ -7,7 +7,7 @@
   <title>IFTH Metais</title>
   <link rel="manifest" href="./manifest.json"/>
   <link rel="stylesheet" href="./styles.css"/>
-  <meta name="theme-color" content="#0e766e"/>
+  <meta name="theme-color" content="#007bff"/>
 </head>
 <body>
   <div class="appbar">
@@ -18,10 +18,10 @@
   </div>
   <div class="container">
     <nav class="nav">
-      <a href="#client" class="active">Cliente</a>
-      <a href="#location">Local</a>
-      <a href="#metal">Metal</a>
-      <a href="#view">Registros</a>
+      <a href="#client" class="active"><span class="icon">👤</span> Cliente</a>
+      <a href="#location"><span class="icon">📍</span> Local</a>
+      <a href="#metal"><span class="icon">🔧</span> Metal</a>
+      <a href="#view"><span class="icon">📋</span> Registros</a>
     </nav>
 
     <section id="client" class="page">
@@ -33,7 +33,7 @@
           <label for="projectNumber">Número do projeto</label>
           <input id="projectNumber" placeholder="Ex.: 131.25">
           <div class="actions">
-            <button class="btn" style="background:linear-gradient(90deg,#0ea5a6,#22d3ee);border:none;color:#012a2b;font-weight:700" type="submit">Salvar cliente e continuar</button>
+            <button class="btn primary" type="submit">Salvar cliente e continuar</button>
           </div>
           <p class="note">Após salvar o cliente, você irá para o cadastro do Local.</p>
         </form>
@@ -70,7 +70,7 @@
           </div>
           <div class="actions">
             <a class="btn" href="#client">← Voltar</a>
-            <button class="btn" style="background:linear-gradient(90deg,#0ea5a6,#22d3ee);border:none;color:#012a2b;font-weight:700" type="submit">Salvar local e continuar</button>
+            <button class="btn primary" type="submit">Salvar local e continuar</button>
           </div>
         </form>
       </div>
@@ -85,7 +85,7 @@
               <label for="metalType">Metal hidrossanitário</label>
               <select id="metalType"></select>
             </div>
-            <div id="quantityWrap">
+            <div id="quantityWrap" hidden>
               <label for="quantity">Quantidade</label>
               <input id="quantity" type="number" min="1" value="1">
             </div>
@@ -94,7 +94,7 @@
               <input id="number" placeholder="Ex.: 12">
             </div>
           </div>
-          <div class="row row-2">
+          <div class="row row-2" hidden>
             <div id="brandWrap">
               <label for="brand">Marca</label>
               <input id="brand" placeholder="Ex.: Deca">
@@ -109,22 +109,33 @@
             <div>
               <label>Cronômetro</label>
               <div class="timer">
-                <div class="timeface" id="timeface">00:00<small>mm:ss</small></div>
-                <button type="button" class="btn" id="btnStart" style="background:linear-gradient(90deg,#0ea5a6,#22d3ee);border:none;color:#012a2b;font-weight:700">Iniciar</button>
+                <div class="timeface" id="timeface">00:00:00<small>mm:ss:cs</small></div>
+                <button type="button" class="btn primary" id="btnStart">Iniciar</button>
                 <button type="button" class="btn" id="btnStop">Parar</button>
                 <button type="button" class="btn" id="btnReset">Zerar</button>
               </div>
               <input id="timeSeconds" type="hidden" value="0">
               <p class="note">Use o cronômetro para medir o tempo (s). O cálculo de L/min usa o volume em mL.</p>
             </div>
-            <div id="volumeWrap">
+            <div id="volumeWrap" hidden>
               <label for="volumeMl">Volume medido (mL)</label>
               <input id="volumeMl" type="number" min="0" step="1" placeholder="Ex.: 2000">
               <p class="note">O app converte mL → L automaticamente.</p>
             </div>
           </div>
 
-          <div class="row row-2">
+          <div id="volumePopup" class="popup hidden" aria-hidden="true">
+            <div class="popup-content">
+              <h3>Informe o volume (mL)</h3>
+              <input id="volumePopupInput" type="number" min="0" step="1" placeholder="Ex.: 2000">
+              <div class="actions" style="margin-top:10px">
+                <button type="button" class="btn primary" id="volumeSave">Salvar</button>
+                <button type="button" class="btn" id="volumeCancel">Cancelar</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="row row-2" hidden>
             <div>
               <label>Data/Hora (auto)</label>
               <input id="measuredAtView" disabled placeholder="Gerada automaticamente no envio">
@@ -136,12 +147,12 @@
             </div>
           </div>
 
-          <label for="notes">Observações</label>
-          <textarea id="notes" placeholder="Observações sobre o ponto"></textarea>
+          <label for="notes" hidden>Observações</label>
+          <textarea id="notes" hidden placeholder="Observações sobre o ponto"></textarea>
 
-          <div class="actions">
+          <div class="actions" hidden>
             <a class="btn" href="#location">← Voltar</a>
-            <button class="btn" style="background:linear-gradient(90deg,#0ea5a6,#22d3ee);border:none;color:#012a2b;font-weight:700" type="submit">Salvar metal</button>
+            <button class="btn primary" type="submit">Salvar metal</button>
             <a class="btn" href="#view">Ver registros</a>
           </div>
         </form>
@@ -153,8 +164,8 @@
       <div class="card">
         <h2>Registros</h2><p class="note">Os dados são salvos <b>neste dispositivo</b> e não são compartilhados com outros aparelhos.</p>
         <div class="actions">
-          <button id="btnExport" class="btn" style="background:linear-gradient(90deg,#0ea5a6,#22d3ee);border:none;color:#012a2b;font-weight:700">Exportar CSV</button>
-          <button id="btnDeleteAll" class="btn" style="background:#ef4444;border:none;color:#2b0a06;font-weight:700">Excluir todos os dados</button>
+          <button id="btnExport" class="btn primary">Exportar CSV</button>
+          <button id="btnDeleteAll" class="btn danger">Excluir todos os dados</button>
           <a class="btn" href="#metal">Adicionar novo metal</a>
         </div>
         <div class="tablewrap" style="margin-top:14px">
