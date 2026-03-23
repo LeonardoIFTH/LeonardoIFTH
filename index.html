@@ -18,10 +18,7 @@
   <div class="container">
     <nav class="nav">
       <a href="#home" class="nav-link home active"><span class="icon">🏠</span> Início</a>
-      <a href="#metal" class="nav-link metal"><span class="icon">🔧</span> Medição Metais</a>
-      <a href="#hidrometer" class="nav-link hidrometer"><span class="icon">💧</span> Tags Hidrômetros</a>
-      <a href="#visitreport" class="nav-link visitreport"><span class="icon">📝</span> Relatório de Visita</a>
-      <a href="#emBreve" class="nav-link emBreve" style="display:none;"><span class="icon">⏳</span> Em breve</a>
+      <a href="#view" class="nav-link registros" style="display:none;"><span class="icon">📋</span> Registros</a>
     </nav>
 
     <section id="home" class="page">
@@ -203,7 +200,7 @@
           <div class="actions">
             <button class="btn" type="button" id="btnHidroCancel">← Voltar</button>
             <button class="btn primary" type="submit">Salvar hidrômetro</button>
-            <button class="btn" type="button" id="btnHidroExport">Exportar PDF/Word</button>
+            <a class="btn" href="#view">Ver registros</a>
           </div>
         </form>
       </div>
@@ -230,6 +227,7 @@
           <div class="actions">
             <button class="btn" type="button" id="btnVisitAdd">Adicionar item</button>
             <button class="btn primary" type="button" id="btnVisitExport">Exportar PDF</button>
+            <a class="btn" href="#view">Ver registros</a>
             <button class="btn" type="button" id="btnVisitBack">← Voltar</button>
           </div>
         </form>
@@ -243,6 +241,7 @@
         <div class="actions">
           <button id="btnExport" class="btn primary">Exportar CSV Metais</button>
           <button id="btnExportHidro" class="btn primary">Exportar CSV Hidrômetros</button>
+          <button id="btnExportHidroPdf" class="btn primary">Exportar PDF Hidrômetros</button>
           <button id="btnDeleteAll" class="btn danger">Excluir todos os dados</button>
           <a class="btn" href="#metal">Adicionar novo metal</a>
         </div>

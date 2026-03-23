@@ -68,9 +68,25 @@ function setMode(mode){
   const links = $$('.nav a');
   links.forEach(a=>{ a.classList.remove('active'); a.style.display='none'; });
 
-  // Apenas o botão Home permanece visível no topo em todo caso
+  // Sempre home visível
   const home = $$('.nav a.home')[0];
-  if(home){ home.style.display='flex'; home.classList.add('active'); }
+  if(home){ home.style.display='flex'; }
+
+  // Registros aparece quando não está em home
+  const registros = $$('.nav a.registros')[0];
+  if(registros){
+    if(mode === 'home'){
+      registros.style.display = 'none';
+    } else {
+      registros.style.display = 'flex';
+    }
+  }
+
+  // Marcar ativo (home, metal, hidrometer, visitreport, view)
+  let activeClass = mode;
+  if(mode === 'view') activeClass = 'registros';
+  const current = $$('.nav a.'+activeClass)[0];
+  if(current){ current.classList.add('active'); }
 }
 
 function show(id){
@@ -84,6 +100,7 @@ function show(id){
   if(['client','location','metal','view'].includes(id)) setMode('metal');
   if(id==='hidrometer') setMode('hidrometer');
   if(id==='visitreport') setMode('visitreport');
+  if(id==='view') setMode('view');
   if(id==='home') setMode('home');
   if(id==='metal'){ const mv=$('#measuredAtView'); if(mv) mv.value=new Date().toLocaleString(); }
   if(id==='view') renderTable();
@@ -297,6 +314,54 @@ async function init(){
 
   $('#btnVisitExport').addEventListener('click', exportVisitReportPdf);
   $('#btnVisitBack').addEventListener('click', ()=>{ show('home'); setMode('home'); });
+  
+  // Adiciona listener para o botão de exportar PDF de hidrômetros na página view
+  $('#btnExportHidroPdf')?.addEventListener('click', async ()=>{
+    // Reusa a mesma função do btnHidroExport
+    const entries = await DB.getAll('hidrometers','createdAt',null,'next');
+    if(!entries.length){ alert('Nenhum registro de hidrômetro para exportar.'); return; }
+    
+    const jsPDFConstructor = window.jspdf?.jsPDF || window.jsPDF || window.jspdf;
+    if(!jsPDFConstructor){ alert('Biblioteca jsPDF não encontrada. Verifique se o script está carregado.'); return; }
+
+    const doc = new jsPDFConstructor({ unit: 'pt', format:'a4' });
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const pageHeight = doc.internal.pageSize.getHeight();
+    const margin = 40;
+    const maxLineWidth = pageWidth - margin * 2;
+    const lineHeight = 16;
+
+    for(let i=0;i<entries.length;i++){
+      if(i>0){ doc.addPage(); }
+      const entry = entries[i];
+      const headerText = `Relatório de Hidrômetro\nTag: ${entry.tag||'-'}\nLocal: ${entry.location||'-'}\nData: ${new Date(entry.createdAt).toLocaleString()}\n\n`;
+      const detailsText = `Origem: ${entry.arrival||'-'}\nDestino: ${entry.departure||'-'}\nTipo de água: ${entry.waterType||'-'}\n\nObservações:\n${entry.notes||'-'}`;
+
+      let y = margin;
+      const lines = doc.splitTextToSize(headerText + detailsText, maxLineWidth);
+
+      lines.forEach((line)=>{
+        if(y + lineHeight > pageHeight - margin){ doc.addPage(); y = margin; }
+        doc.text(line, margin, y);
+        y += lineHeight;
+      });
+
+      if(entry.photoDataUrl){
+        y += lineHeight;
+        if(y + 200 > pageHeight - margin){ doc.addPage(); y = margin; }
+        try{
+          doc.addImage(entry.photoDataUrl, 'JPEG', margin, y, 200, 150);
+          y += 160;
+        }catch(err){
+          console.warn('Imagem não carregada para PDF', err);
+        }
+      }
+    }
+
+    const today = new Date();
+    const filename = `relatorio_hidrometros_${today.toISOString().slice(0,19).replace(/[T:]/g,'-')}.pdf`;
+    doc.save(filename);
+  });
 
   visitReportEntries = (await DB.getAll('visitReports','createdAt',null,'prev')).filter(x=>x.deviceId===DEVICE_ID);
   renderVisitEntries();
@@ -516,12 +581,14 @@ document.getElementById('btnExportHidro')?.addEventListener('click', async ()=>{
 });
 document.getElementById('btnDeleteAll')?.addEventListener('click', async ()=>{
   if(!confirm('Excluir todos os dados deste dispositivo?')) return;
-  // Delete metals for this device
+  // Delete all data for this device
   const metals = await DB.getAll('metals'); for(const m of metals){ if(m.deviceId === DEVICE_ID){ await DB.del('metals', m.id); } }
-  // Optionally clean up locations/clients with this deviceId (not strictly required, but good hygiene)
-  const locs = await DB.getAll('locations'); for(const l of locs){ if(l.deviceId === DEVICE_ID){ await DB.del('locations', l.id); } }
+  const locations = await DB.getAll('locations'); for(const l of locations){ if(l.deviceId === DEVICE_ID){ await DB.del('locations', l.id); } }
   const clients = await DB.getAll('clients'); for(const c of clients){ if(c.deviceId === DEVICE_ID){ await DB.del('clients', c.id); } }
+  const hidrometers = await DB.getAll('hidrometers'); for(const h of hidrometers){ if(h.deviceId === DEVICE_ID){ await DB.del('hidrometers', h.id); } }
+  const visitReports = await DB.getAll('visitReports'); for(const v of visitReports){ if(v.deviceId === DEVICE_ID){ await DB.del('visitReports', v.id); } }
   localStorage.removeItem('hidro_state');
+  alert('Todos os dados foram excluídos com sucesso.');
   location.reload();
 });
 window.addEventListener('hashchange', ()=>{ const id=location.hash.slice(1)||'home'; show(id); });
