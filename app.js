@@ -58,18 +58,44 @@ async function fileToJpegDataURL(file){
 }
 
 let timerInt=null; let timerStart=0; let elapsedMs=0;
+let visitReportEntries=[];
 function updateTimeface(){ const totalMs = elapsedMs; const minutes = Math.floor(totalMs / 60000); const seconds = Math.floor((totalMs % 60000) / 1000); const cs = Math.floor((totalMs % 1000) / 10); const mm = String(minutes).padStart(2, '0'); const ss = String(seconds).padStart(2, '0'); const css = String(cs).padStart(2, '0'); const tf = $('#timeface'); if(tf){ tf.childNodes[0].nodeValue = `${mm}:${ss}:${css}`; tf.style.setProperty('--progress', ((seconds % 60) / 60 * 100).toFixed(1)); } $('#timeSeconds').value = Math.floor(totalMs / 1000); }
 function startTimer(){ if(timerInt) return; timerStart=performance.now()-elapsedMs; timerInt=setInterval(()=>{ elapsedMs=performance.now()-timerStart; updateTimeface(); },100); const tf=$('#timeface'); if(tf) tf.classList.add('running'); }
 function stopTimer(){ if(!timerInt) return; clearInterval(timerInt); timerInt=null; elapsedMs=performance.now()-timerStart; updateTimeface(); const tf=$('#timeface'); if(tf) tf.classList.remove('running'); showVolumePopup(); }
 function resetTimer(){ clearInterval(timerInt); timerInt=null; elapsedMs=0; timerStart=0; updateTimeface(); const tf=$('#timeface'); if(tf) tf.classList.remove('running'); hideVolumePopup(); }
 
-function show(id){ $$('.page').forEach(p=>p.hidden=true); $('#'+id).hidden=false; $$('.nav a').forEach(a=>a.classList.toggle('active', a.getAttribute('href')==='#'+id));
+function setMode(mode){
+  const links = $$('.nav a');
+  links.forEach(a=>{ a.classList.remove('active'); a.style.display='none'; });
+
+  // Apenas o botão Home permanece visível no topo em todo caso
+  const home = $$('.nav a.home')[0];
+  if(home){ home.style.display='flex'; home.classList.add('active'); }
+}
+
+function show(id){
+  $$('.page').forEach(p=>p.hidden=true);
+  $('#'+id).hidden=false;
+  $$('.nav a').forEach(a=>a.classList.remove('active'));
+  if(id!=='home'){
+    const tab=$$('.nav a[href="#'+id+'"][class*="nav-link"]')[0];
+    if(tab) tab.classList.add('active');
+  }
+  if(['client','location','metal','view'].includes(id)) setMode('metal');
+  if(id==='hidrometer') setMode('hidrometer');
+  if(id==='visitreport') setMode('visitreport');
+  if(id==='home') setMode('home');
   if(id==='metal'){ const mv=$('#measuredAtView'); if(mv) mv.value=new Date().toLocaleString(); }
   if(id==='view') renderTable();
+  if(id==='visitreport') renderVisitEntries();
 }
+
 
 async function init(){
   $$('.nav a').forEach(a=>a.addEventListener('click',e=>{e.preventDefault(); show(a.getAttribute('href').slice(1));}));
+  $('#btnNavMetal').addEventListener('click', ()=>{ setMode('metal'); show('client'); });
+  $('#btnNavHidrometer').addEventListener('click', ()=>{ setMode('hidrometer'); show('hidrometer'); });
+  $('#btnNavVisitReport')?.addEventListener('click', ()=>{ setMode('visitreport'); show('visitreport'); });
 
   // Inicializa estado do metal
   renderMetalFields();
@@ -153,6 +179,128 @@ async function init(){
     }
   });
 
+  $('#hidrometerForm').addEventListener('submit', async (e)=>{
+    e.preventDefault();
+    const tag = $('#hidroTag').value.trim();
+    if(!tag){ alert('Informe a tag do hidrômetro'); return; }
+    const photoFile = $('#hidroPhoto').files?.[0];
+    let photoDataUrl = null;
+    try { photoDataUrl = await fileToJpegDataURL(photoFile); } catch(err){ console.error('Erro convertendo foto hidrômetro', err); }
+    const payload = {
+      deviceId: DEVICE_ID,
+      tag,
+      photoDataUrl,
+      location: $('#hidroLocation').value.trim(),
+      arrival: $('#hidroArrival').value,
+      departure: $('#hidroDeparture').value,
+      waterType: $('#hidroWaterType').value,
+      notes: $('#hidroNotes').value.trim(),
+      createdAt: Date.now()
+    };
+    try {
+      const id = await DB.add('hidrometers', payload);
+      console.log('Hidrômetro salvo ID:', id, payload);
+      $('#hidrometerForm').reset(); show('home');
+      alert('Hidrômetro salvo com sucesso.');
+    } catch(err) {
+      console.error('Erro salvando hidrômetro:', err);
+      alert('Não foi possível salvar hidrômetro.');
+    }
+  });
+
+  $('#btnHidroCancel').addEventListener('click', ()=>show('home'));
+  $('#btnHidroExport').addEventListener('click', async ()=>{
+    const entries = await DB.getAll('hidrometers','createdAt',null,'next');
+    if(!entries.length){ alert('Nenhum registro de hidrômetro para exportar.'); return; }
+    
+    const jsPDFConstructor = window.jspdf?.jsPDF || window.jsPDF || window.jspdf;
+    if(!jsPDFConstructor){ alert('Biblioteca jsPDF não encontrada. Verifique se o script está carregado.'); return; }
+
+    const doc = new jsPDFConstructor({ unit: 'pt', format:'a4' });
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const pageHeight = doc.internal.pageSize.getHeight();
+    const margin = 40;
+    const maxLineWidth = pageWidth - margin * 2;
+    const lineHeight = 16;
+
+    for(let i=0;i<entries.length;i++){
+      if(i>0){ doc.addPage(); }
+      const entry = entries[i];
+      const headerText = `Relatório de Hidrômetro\nTag: ${entry.tag||'-'}\nLocal: ${entry.location||'-'}\nData: ${new Date(entry.createdAt).toLocaleString()}\n\n`;
+      const detailsText = `Origem: ${entry.arrival||'-'}\nDestino: ${entry.departure||'-'}\nTipo de água: ${entry.waterType||'-'}\n\nObservações:\n${entry.notes||'-'}`;
+
+      let y = margin;
+      const lines = doc.splitTextToSize(headerText + detailsText, maxLineWidth);
+
+      lines.forEach((line)=>{
+        if(y + lineHeight > pageHeight - margin){ doc.addPage(); y = margin; }
+        doc.text(line, margin, y);
+        y += lineHeight;
+      });
+
+      if(entry.photoDataUrl){
+        y += lineHeight;
+        if(y + 200 > pageHeight - margin){ doc.addPage(); y = margin; }
+        try{
+          doc.addImage(entry.photoDataUrl, 'JPEG', margin, y, 200, 150);
+          y += 160;
+        }catch(err){
+          console.warn('Imagem não carregada para PDF', err);
+        }
+      }
+    }
+
+    const today = new Date();
+    const filename = `relatorio_hidrometros_${today.toISOString().slice(0,19).replace(/[T:]/g,'-')}.pdf`;
+    doc.save(filename);
+  });
+
+  $('#visitCategory').addEventListener('change', ()=>{
+    if($('#visitCategory').value === 'outro'){
+      $('#visitCategoryOtherWrap').hidden = false;
+    } else {
+      $('#visitCategoryOtherWrap').hidden = true;
+      $('#visitCategoryOther').value = '';
+    }
+  });
+
+  $('#btnVisitAdd').addEventListener('click', async ()=>{
+    let category = $('#visitCategory').value || 'outro';
+    if(category === 'outro'){
+      const custom = $('#visitCategoryOther').value.trim();
+      if(!custom){ alert('Informe a categoria personalizada.'); return; }
+      category = custom;
+    }
+    const description = $('#visitDescription').value.trim();
+    if(!description){ alert('Informe a descrição do relatório.'); return; }
+    const files = $('#visitPhotos').files;
+    const photos = await convertFilesToJpegDataUrls(files);
+    const payload = {
+      deviceId: DEVICE_ID,
+      category,
+      description,
+      photos,
+      createdAt: Date.now(),
+    };
+    try {
+      const id = await DB.add('visitReports', payload);
+      visitReportEntries.unshift({id, ...payload});
+      renderVisitEntries();
+      $('#visitReportForm').reset();
+      $('#visitCategoryOtherWrap').hidden = true;
+      alert('Item de relatório adicionado.');
+    } catch(err){
+      console.error('Erro salvando relatório:', err);
+      alert('Não foi possível salvar o relatório.');
+    }
+  });
+
+  $('#btnVisitExport').addEventListener('click', exportVisitReportPdf);
+  $('#btnVisitBack').addEventListener('click', ()=>{ show('home'); setMode('home'); });
+
+  visitReportEntries = (await DB.getAll('visitReports','createdAt',null,'prev')).filter(x=>x.deviceId===DEVICE_ID);
+  renderVisitEntries();
+
   // SW
   if('serviceWorker' in navigator){ try{ navigator.serviceWorker.register('./sw.js'); }catch(e){} }
 }
@@ -222,8 +370,13 @@ function renderMetalFields(){
     $('#model').value = '';
   }
 }
-async function renderTable(){ const tbody=$('#tblBody'); tbody.innerHTML=''; let rows=await DB.getAll('metals','createdAt',null,'prev'); rows = rows.filter(r => r.deviceId === DEVICE_ID); const locs=await DB.getAll('locations'); const clients=await DB.getAll('clients');
+async function renderTable(){ 
+  const tbody=$('#tblBody'); tbody.innerHTML=''; 
+  let rows=await DB.getAll('metals','createdAt',null,'prev'); rows = rows.filter(r => r.deviceId === DEVICE_ID); 
+  const locs=await DB.getAll('locations'); const clients=await DB.getAll('clients');
   for(const m of rows){ const loc=locs.find(l=>l.id===m.locationId); const cli=loc?clients.find(c=>c.id===loc.clientId):null; const place=loc?(loc.place==='outro'?(loc.placeOther||'outro'):loc.place):'-';
+    const imgCell = m.photoDataUrl ? `<img class="img-thumb" src="${m.photoDataUrl}"/>` : '-';
+    const downloadCell = m.photoDataUrl ? `<a class="btn" href="${m.photoDataUrl}" download="metal_${m.id || 'img'}.jpg">Baixar</a>` : '-';
     const tr=document.createElement('tr'); tr.innerHTML=`
       <td>${cli?(cli.name||'-'):'-'}</td>
       <td>${cli?(cli.projectNumber||'-'):'-'}</td>
@@ -239,18 +392,104 @@ async function renderTable(){ const tbody=$('#tblBody'); tbody.innerHTML=''; let
       <td>${(m.flowLpm??0)?(m.flowLpm).toFixed(3):'-'}</td>
       <td>${m.measuredAt? new Date(m.measuredAt).toLocaleString(): '-'}</td>
       <td>${m.notes || '-'}</td>
-      <td>${m.photoDataUrl? `<img class="img-thumb" src="${m.photoDataUrl}"/>` : '-'}</td>`;
+      <td>${imgCell}</td>
+      <td>${downloadCell}</td>`;
     tbody.appendChild(tr);
   }
+
+  const tbodyH=$('#tblBodyHidrometer'); tbodyH.innerHTML='';
+  const hydros = await DB.getAll('hidrometers','createdAt',null,'prev');
+  for(const h of hydros.filter(x=>x.deviceId===DEVICE_ID)){
+    const tr=document.createElement('tr');
+    const thumb = h.photoDataUrl ? `<img class="img-thumb" src="${h.photoDataUrl}"/>` : '-';
+    const downloadBtn = h.photoDataUrl ? `<a class="btn" href="${h.photoDataUrl}" download="${h.tag||'hidrometro'}.jpg">Baixar</a>` : '-';
+    tr.innerHTML = `
+      <td>${h.tag||'-'}</td>
+      <td>${h.location||'-'}</td>
+      <td>${h.arrival||'-'}</td>
+      <td>${h.departure||'-'}</td>
+      <td>${h.waterType||'-'}</td>
+      <td>${h.notes||'-'}</td>
+      <td>${thumb}</td>
+      <td>${downloadBtn}</td>`;
+    tbodyH.appendChild(tr);
+  }
 }
+
+function renderVisitEntries(){
+  const container = $('#visitEntries'); if(!container) return;
+  if(!visitReportEntries || visitReportEntries.length===0){ container.innerHTML='<p>Nenhum relatório adicionado ainda.</p>'; return; }
+  container.innerHTML = visitReportEntries.map(entry=>{
+    const photosHtml = (entry.photos||[]).map((img,i)=>`<div style="display:inline-block;margin:3px;text-align:center;"><img class="img-thumb" src="${img}"/><br/><a class="btn" href="${img}" download="visit_${entry.id}_${i}.jpg">Baixar</a></div>`).join('');
+    return `<div class="card" style="margin:10px 0; padding:10px; background:#f8f8f8;">
+      <strong>${entry.category||'Sem categoria'}</strong> <span style="font-size:0.8em; color:#555;">${new Date(entry.createdAt).toLocaleString()}</span>
+      <p>${(entry.description||'-').replace(/\n/g,'<br/>')}</p>
+      <div>${photosHtml||'<em>Sem fotos</em>'}</div>
+      <div style="margin-top:8px;"><button class="btn danger" data-visitreid="${entry.id}">Remover</button></div>
+    </div>`;
+  }).join('');
+  container.querySelectorAll('button[data-visitreid]').forEach(btn=>{ btn.onclick=async()=>{ const id=parseInt(btn.dataset.visitreid,10); await DB.del('visitReports',id); visitReportEntries=visitReportEntries.filter(e=>e.id!==id); renderVisitEntries(); }; });
+}
+
+async function convertFilesToJpegDataUrls(fileList){
+  const files = Array.from(fileList||[]);
+  const urls = await Promise.all(files.map(async file=>{ const dataUrl = await fileToJpegDataURL(file); return dataUrl; }));
+  return urls.filter(Boolean);
+}
+
+async function exportVisitReportPdf(){
+  if(!visitReportEntries || visitReportEntries.length===0){ alert('Nenhum relatório de visita disponível para exportar.'); return; }
+  const jsPDFConstructor = window.jspdf?.jsPDF || window.jsPDF || window.jspdf;
+  if(!jsPDFConstructor){ alert('Biblioteca jsPDF não encontrada. Verifique se o script está carregado.'); return; }
+
+  const doc = new jsPDFConstructor({ unit: 'pt', format:'a4' });
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const pageHeight = doc.internal.pageSize.getHeight();
+  const margin = 40;
+  const maxLineWidth = pageWidth - margin * 2;
+  const lineHeight = 16;
+
+  for(let i=0;i<visitReportEntries.length;i++){
+    if(i>0){ doc.addPage(); }
+    const entry = visitReportEntries[i];
+    const headerText = `Relatório de Visita\nCategoria: ${entry.category||'-'}\nData: ${new Date(entry.createdAt).toLocaleString()}\n\n`;
+    const descriptionText = `Descrição:\n${entry.description||'-'}`;
+
+    let y = margin;
+    const lines = doc.splitTextToSize(headerText + descriptionText, maxLineWidth);
+
+    lines.forEach((line)=>{
+      if(y + lineHeight > pageHeight - margin){ doc.addPage(); y = margin; }
+      doc.text(line, margin, y);
+      y += lineHeight;
+    });
+
+    if((entry.photos||[]).length){
+      y += lineHeight; // spacing before imagens
+      for(const img of (entry.photos||[])){
+        if(y + 160 > pageHeight - margin){ doc.addPage(); y = margin; }
+        try{
+          doc.addImage(img, 'JPEG', margin, y, 200, 150);
+        }catch(err){
+          console.warn('Imagem não carregada para PDF', err);
+        }
+        y += 160 + 10;
+      }
+    }
+  }
+
+  const today = new Date();
+  const filename = `relatorio_visita_${today.toISOString().slice(0,19).replace(/[T:]/g,'-')}.pdf`;
+  doc.save(filename);
+}
+
 function formatDateNoComma(d){ const p=(n)=>String(n).padStart(2,'0'); return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`; }
 function toCSVRow(arr){ return arr.map(v=>{ if(v==null) v=''; v=String(v); if(v.includes('"')||v.includes(',')||v.includes('\n')) v='"'+v.replace(/"/g,'""')+'"'; return v; }).join(','); }
 document.getElementById('btnExport')?.addEventListener('click', async ()=>{
   let rows=await DB.getAll('metals','createdAt',null,'next'); rows = rows.filter(r => r.deviceId === DEVICE_ID); const locs=await DB.getAll('locations'); const clients=await DB.getAll('clients');
   const header=['Cliente','Projeto','Torre','Andar','Setor','Local','Metal','Marca','Modelo','Tempo (s)','Volume (mL)','Vazão (L/min)','Data/Hora','Observações'];
   const lines=[toCSVRow(header)];
-  for(const m of rows){ const loc=locs.find(l=>l.id===m.locationId); const cli=loc?clients.find(c=>c.id===loc.clientId):null; const place=loc?(loc.place==='outro'?(loc.placeOther||'outro'):loc.place):'';
-    lines.push(toCSVRow([
+  for(const m of rows){ const loc=locs.find(l=>l.id===m.locationId); const cli=loc?clients.find(c=>c.id===loc.clientId):null; const place=loc?(loc.place==='outro'?(loc.placeOther||'outro'):loc.place):'';    lines.push(toCSVRow([
       cli?.name||'', cli?.projectNumber||'', loc?.tower||'', loc?.floor||'', loc?.sector||'', place||'',
       (m.type||'') + (m.quantity?` (${m.quantity})`:'') + (m.number?` • Nº ${m.number}`:''),
       m.brand||'', m.model||'', m.timeSeconds||0, m.volumeMl||0, (m.flowLpm!=null? m.flowLpm.toFixed(3):''),
@@ -258,7 +497,22 @@ document.getElementById('btnExport')?.addEventListener('click', async ()=>{
       m.notes||''
     ]));
   }
-  const blob=new Blob([lines.join('\n')],{type:'text/csv'}); const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download='registros.csv'; a.click(); setTimeout(()=>URL.revokeObjectURL(url),1500);
+  const csvContent = '\uFEFF' + lines.join('\n'); // BOM para Excel PT-BR
+  const blob=new Blob([csvContent],{type:'text/csv;charset=utf-8;'});
+  const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download='registros.csv'; a.click(); setTimeout(()=>URL.revokeObjectURL(url),1500);
+});
+document.getElementById('btnExportHidro')?.addEventListener('click', async ()=>{
+  const entries = await DB.getAll('hidrometers','createdAt',null,'next');
+  const rows = entries.filter(r=>r.deviceId===DEVICE_ID);
+  if(rows.length===0){ alert('Não há registros de hidrômetros para exportar.'); return; }
+  const header=['Tag','Local','Origem','Destino','Tipo Água','Informações','Foto'];
+  const lines=[toCSVRow(header)];
+  for(const h of rows){ lines.push(toCSVRow([h.tag||'', h.location||'', h.arrival||'', h.departure||'', h.waterType||'', h.notes||'', h.photoDataUrl||''])); }
+  const csvContent2 = '\uFEFF' + lines.join('\n'); // BOM para Excel PT-BR
+  const blob2 = new Blob([csvContent2], {type:'text/csv;charset=utf-8;'});
+  const url2 = URL.createObjectURL(blob2);
+  const a2 = document.createElement('a');
+  a2.href = url2; a2.download = 'registros_hidrometros.csv'; a2.click(); setTimeout(()=>URL.revokeObjectURL(url2),1500);
 });
 document.getElementById('btnDeleteAll')?.addEventListener('click', async ()=>{
   if(!confirm('Excluir todos os dados deste dispositivo?')) return;
@@ -270,5 +524,5 @@ document.getElementById('btnDeleteAll')?.addEventListener('click', async ()=>{
   localStorage.removeItem('hidro_state');
   location.reload();
 });
-window.addEventListener('hashchange', ()=>{ const id=location.hash.slice(1)||'client'; show(id); });
-document.addEventListener('DOMContentLoaded', init);
+window.addEventListener('hashchange', ()=>{ const id=location.hash.slice(1)||'home'; show(id); });
+document.addEventListener('DOMContentLoaded', ()=>{ setMode('home'); show('home'); init(); });

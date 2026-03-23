@@ -7,8 +7,7 @@
   <title>IFTH Metais</title>
   <link rel="manifest" href="./manifest.json"/>
   <link rel="stylesheet" href="./styles.css"/>
-  <meta name="theme-color" content="#007bff"/>
-</head>
+  <meta name="theme-color" content="#007bff"/>  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script></head>
 <body>
   <div class="appbar">
     <div class="container brand">
@@ -18,13 +17,26 @@
   </div>
   <div class="container">
     <nav class="nav">
-      <a href="#client" class="active"><span class="icon">👤</span> Cliente</a>
-      <a href="#location"><span class="icon">📍</span> Local</a>
-      <a href="#metal"><span class="icon">🔧</span> Metal</a>
-      <a href="#view"><span class="icon">📋</span> Registros</a>
+      <a href="#home" class="nav-link home active"><span class="icon">🏠</span> Início</a>
+      <a href="#metal" class="nav-link metal"><span class="icon">🔧</span> Medição Metais</a>
+      <a href="#hidrometer" class="nav-link hidrometer"><span class="icon">💧</span> Tags Hidrômetros</a>
+      <a href="#visitreport" class="nav-link visitreport"><span class="icon">📝</span> Relatório de Visita</a>
+      <a href="#emBreve" class="nav-link emBreve" style="display:none;"><span class="icon">⏳</span> Em breve</a>
     </nav>
 
-    <section id="client" class="page">
+    <section id="home" class="page">
+      <div class="card">
+        <h2>Escolha uma funcionalidade</h2>
+        <div class="actions" style="flex-direction:column;align-items:stretch;">
+          <button class="btn primary" id="btnNavMetal" type="button">Medição de Metais</button>
+          <button class="btn primary" id="btnNavHidrometer" type="button">Tags de Hidrômetros</button>
+          <button class="btn primary" id="btnNavVisitReport" type="button">Relatório de Visita</button>
+          <button class="btn" type="button" disabled>Em breve</button>
+        </div>
+      </div>
+    </section>
+
+    <section id="client" class="page" hidden>
       <div class="card">
         <h2>Cadastro do Cliente</h2>
         <form id="clientForm">
@@ -160,15 +172,82 @@
       </div>
     </section>
 
+    <section id="hidrometer" class="page" hidden>
+      <div class="card">
+        <h2>Cadastro de Tag de Hidrômetro</h2>
+        <form id="hidrometerForm">
+          <label for="hidroTag">Tag (nome)</label>
+          <input id="hidroTag" placeholder="Ex.: Hidrômetro A1" required>
+
+          <label for="hidroPhoto">Foto do hidrômetro</label>
+          <input id="hidroPhoto" type="file" accept="image/*" capture="environment">
+
+          <label for="hidroLocation">Local</label>
+          <input id="hidroLocation" placeholder="Ex.: Sala técnica">
+
+          <label for="hidroArrival">Origem da água (de onde vem)</label>
+          <input id="hidroArrival" placeholder="Ex.: Poço, reservatório" type="text">
+
+          <label for="hidroDeparture">Destino da água (para onde vai)</label>
+          <input id="hidroDeparture" placeholder="Ex.: Rede potável, não potável" type="text">
+
+          <label for="hidroWaterType">Tipo de água</label>
+          <select id="hidroWaterType">
+            <option value="potavel">Potável</option>
+            <option value="nao-potavel">Não potável</option>
+          </select>
+
+          <label for="hidroNotes">Informações adicionais</label>
+          <textarea id="hidroNotes" placeholder="Observações..." rows="3"></textarea>
+
+          <div class="actions">
+            <button class="btn" type="button" id="btnHidroCancel">← Voltar</button>
+            <button class="btn primary" type="submit">Salvar hidrômetro</button>
+            <button class="btn" type="button" id="btnHidroExport">Exportar PDF/Word</button>
+          </div>
+        </form>
+      </div>
+    </section>
+
+    <section id="visitreport" class="page" hidden>
+      <div class="card">
+        <h2>Relatório de Visita</h2>
+        <form id="visitReportForm">
+          <label for="visitCategory">Categoria</label>
+          <select id="visitCategory">
+            <option value="reservatorios">Reservatórios</option>
+            <option value="lojas">Lojas</option>
+            <option value="outro">Outro</option>
+          </select>
+          <div id="visitCategoryOtherWrap" hidden>
+            <label for="visitCategoryOther">Especifique categoria</label>
+            <input id="visitCategoryOther" type="text" placeholder="Digite o nome da categoria" />
+          </div>
+          <label for="visitDescription">Descrição</label>
+          <textarea id="visitDescription" rows="4" placeholder="Informe os detalhes..."></textarea>
+          <label for="visitPhotos">Fotos</label>
+          <input id="visitPhotos" type="file" accept="image/*" capture="environment" multiple>
+          <div class="actions">
+            <button class="btn" type="button" id="btnVisitAdd">Adicionar item</button>
+            <button class="btn primary" type="button" id="btnVisitExport">Exportar PDF</button>
+            <button class="btn" type="button" id="btnVisitBack">← Voltar</button>
+          </div>
+        </form>
+        <div id="visitEntries" style="margin-top:12px"></div>
+      </div>
+    </section>
+
     <section id="view" class="page" hidden>
       <div class="card">
         <h2>Registros</h2><p class="note">Os dados são salvos <b>neste dispositivo</b> e não são compartilhados com outros aparelhos.</p>
         <div class="actions">
-          <button id="btnExport" class="btn primary">Exportar CSV</button>
+          <button id="btnExport" class="btn primary">Exportar CSV Metais</button>
+          <button id="btnExportHidro" class="btn primary">Exportar CSV Hidrômetros</button>
           <button id="btnDeleteAll" class="btn danger">Excluir todos os dados</button>
           <a class="btn" href="#metal">Adicionar novo metal</a>
         </div>
         <div class="tablewrap" style="margin-top:14px">
+          <h3>Metais</h3>
           <table>
             <thead>
               <tr>
@@ -190,6 +269,24 @@
               </tr>
             </thead>
             <tbody id="tblBody"></tbody>
+          </table>
+        </div>
+        <div class="tablewrap" style="margin-top:14px">
+          <h3>Hidrômetros</h3>
+          <table>
+            <thead>
+              <tr>
+                <th>Tag</th>
+                <th>Local</th>
+                <th>Origem</th>
+                <th>Destino</th>
+                <th>Tipo Água</th>
+                <th>Observações</th>
+                <th>Foto</th>
+                <th>Baixar</th>
+              </tr>
+            </thead>
+            <tbody id="tblBodyHidrometer"></tbody>
           </table>
         </div>
       </div>
