@@ -59,6 +59,7 @@ async function fileToJpegDataURL(file){
 
 let timerInt=null; let timerStart=0; let elapsedMs=0;
 let visitReportEntries=[];
+let currentFeature='home';
 function updateTimeface(){ const totalMs = elapsedMs; const minutes = Math.floor(totalMs / 60000); const seconds = Math.floor((totalMs % 60000) / 1000); const cs = Math.floor((totalMs % 1000) / 10); const mm = String(minutes).padStart(2, '0'); const ss = String(seconds).padStart(2, '0'); const css = String(cs).padStart(2, '0'); const tf = $('#timeface'); if(tf){ tf.childNodes[0].nodeValue = `${mm}:${ss}:${css}`; tf.style.setProperty('--progress', ((seconds % 60) / 60 * 100).toFixed(1)); } $('#timeSeconds').value = Math.floor(totalMs / 1000); }
 function startTimer(){ if(timerInt) return; timerStart=performance.now()-elapsedMs; timerInt=setInterval(()=>{ elapsedMs=performance.now()-timerStart; updateTimeface(); },100); const tf=$('#timeface'); if(tf) tf.classList.add('running'); }
 function stopTimer(){ if(!timerInt) return; clearInterval(timerInt); timerInt=null; elapsedMs=performance.now()-timerStart; updateTimeface(); const tf=$('#timeface'); if(tf) tf.classList.remove('running'); showVolumePopup(); }
@@ -95,11 +96,26 @@ function show(id){
     const tab=$$('.nav a[href="#'+id+'"][class*="nav-link"]')[0];
     if(tab) tab.classList.add('active');
   }
-  if(['client','location','metal','view'].includes(id)) setMode('metal', id);
-  if(id==='hidrometer') setMode('hidrometer', id);
-  if(id==='visitreport') setMode('visitreport', id);
-  if(id==='view') setMode('view', id);
-  if(id==='home') setMode('home', id);
+  if(['client','location','metal'].includes(id)){
+    currentFeature='metal';
+    setMode('metal', id);
+  }
+  if(id==='hidrometer'){
+    currentFeature='hidrometer';
+    setMode('hidrometer', id);
+  }
+  if(id==='visitreport'){
+    currentFeature='visitreport';
+    setMode('visitreport', id);
+  }
+  if(id==='view'){
+    if(currentFeature==='metal') setMode('metal', id);
+    else setMode('view', id);
+  }
+  if(id==='home'){
+    currentFeature='home';
+    setMode('home', id);
+  }
   if(id==='metal'){ const mv=$('#measuredAtView'); if(mv) mv.value=new Date().toLocaleString(); }
   if(id==='view') renderTable();
   if(id==='visitreport'){ 
