@@ -211,7 +211,7 @@
         <h2>Relatório de Visita</h2>
         <form id="visitReportForm">
           <label for="visitCategory">Categoria</label>
-          <select id="visitCategory">
+          <select id="visitCategory" onchange="(function(sel){var wrap=document.getElementById('visitCategoryOtherWrap'); if(!wrap) return; var isOther=((sel.value||'').trim().toLowerCase()==='outro'); wrap.hidden=!isOther; if(isOther){var inp=document.getElementById('visitCategoryOther'); if(inp) inp.focus();} else {var inp2=document.getElementById('visitCategoryOther'); if(inp2) inp2.value='';}})(this)">
             <option value="reservatorios">Reservatórios</option>
             <option value="lojas">Lojas</option>
             <option value="outro">Outro</option>
@@ -291,6 +291,20 @@
       </div>
     </section>
   </div>
-  <script type="module" src="./app.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', function () {
+      var sel = document.getElementById('visitCategory');
+      var wrap = document.getElementById('visitCategoryOtherWrap');
+      if (!sel || !wrap) return;
+      var sync = function () {
+        var isOther = String(sel.value || '').trim().toLowerCase() === 'outro';
+        wrap.hidden = !isOther;
+      };
+      sel.addEventListener('change', sync);
+      sel.addEventListener('input', sync);
+      sync();
+    });
+  </script>
+  <script type="module" src="./app.js?v=20260323-02"></script>
 </body>
 </html>

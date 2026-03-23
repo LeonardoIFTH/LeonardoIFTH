@@ -104,7 +104,15 @@ function show(id){
   if(id==='home') setMode('home');
   if(id==='metal'){ const mv=$('#measuredAtView'); if(mv) mv.value=new Date().toLocaleString(); }
   if(id==='view') renderTable();
-  if(id==='visitreport') renderVisitEntries();
+  if(id==='visitreport'){ 
+    renderVisitEntries();
+    // Reset estado do campo "outro"
+    $('#visitCategory').value = 'reservatorios';
+    $('#visitCategoryOtherWrap').hidden = true;
+    $('#visitCategoryOther').value = '';
+    // Mantem sincronizado mesmo em browsers que disparam "change" tardiamente
+    $('#visitCategory').dispatchEvent(new Event('input'));
+  }
 }
 
 
@@ -116,6 +124,22 @@ async function init(){
 
   // Inicializa estado do metal
   renderMetalFields();
+
+  // Inicializa estado da categoria "outro" do relatório de visita
+  function updateVisitCategoryOtherVisibility(){
+    const sel = $('#visitCategory');
+    if(!sel) return;
+    const normalizedValue = String(sel.value || '').trim().toLowerCase();
+    const isOther = normalizedValue === 'outro';
+    $('#visitCategoryOtherWrap').hidden = !isOther;
+    if(isOther){
+      $('#visitCategoryOther').focus();
+    } else {
+      $('#visitCategoryOther').value = '';
+    }
+  }
+  $('#visitCategory').value = 'reservatorios';
+  updateVisitCategoryOtherVisibility();
 
   // Client
   $('#clientForm').addEventListener('submit', async (e)=>{
@@ -272,18 +296,12 @@ async function init(){
     doc.save(filename);
   });
 
-  $('#visitCategory').addEventListener('change', ()=>{
-    if($('#visitCategory').value === 'outro'){
-      $('#visitCategoryOtherWrap').hidden = false;
-    } else {
-      $('#visitCategoryOtherWrap').hidden = true;
-      $('#visitCategoryOther').value = '';
-    }
-  });
+  $('#visitCategory').addEventListener('change', updateVisitCategoryOtherVisibility);
+  $('#visitCategory').addEventListener('input', updateVisitCategoryOtherVisibility);
 
   $('#btnVisitAdd').addEventListener('click', async ()=>{
-    let category = $('#visitCategory').value || 'outro';
-    if(category === 'outro'){
+    let category = $('#visitCategory').value || 'reservatorios';
+    if(String(category).trim().toLowerCase() === 'outro'){
       const custom = $('#visitCategoryOther').value.trim();
       if(!custom){ alert('Informe a categoria personalizada.'); return; }
       category = custom;
@@ -304,7 +322,9 @@ async function init(){
       visitReportEntries.unshift({id, ...payload});
       renderVisitEntries();
       $('#visitReportForm').reset();
+      $('#visitCategoryOther').value = '';
       $('#visitCategoryOtherWrap').hidden = true;
+      $('#visitCategory').value = 'reservatorios'; // reset ao padrão
       alert('Item de relatório adicionado.');
     } catch(err){
       console.error('Erro salvando relatório:', err);
@@ -367,7 +387,22 @@ async function init(){
   renderVisitEntries();
 
   // SW
-  if('serviceWorker' in navigator){ try{ navigator.serviceWorker.register('./sw.js'); }catch(e){} }
+  if('serviceWorker' in navigator){
+    try{
+      const regs = await navigator.serviceWorker.getRegistrations();
+      await Promise.all(regs.map((r)=>r.unregister()));
+      const keys = await caches.keys();
+      await Promise.all(keys.map((k)=>caches.delete(k)));
+      const reg = await navigator.serviceWorker.register('./sw.js?v=20260323-02', { updateViaCache: 'none' });
+      reg.update();
+      let refreshing = false;
+      navigator.serviceWorker.addEventListener('controllerchange', ()=>{
+        if(refreshing) return;
+        refreshing = true;
+        location.reload();
+      });
+    }catch(e){}
+  }
 }
 function showVolumePopup(){ const popup=$('#volumePopup'); if(popup){ popup.classList.remove('hidden'); popup.setAttribute('aria-hidden','false'); $('#volumePopupInput').focus(); } }
 function hideVolumePopup(){ const popup=$('#volumePopup'); if(popup){ popup.classList.add('hidden'); popup.setAttribute('aria-hidden','true'); $('#volumePopupInput').value = ''; } }
