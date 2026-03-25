@@ -403,18 +403,8 @@ async function init(){
   // SW
   if('serviceWorker' in navigator){
     try{
-      const regs = await navigator.serviceWorker.getRegistrations();
-      await Promise.all(regs.map((r)=>r.unregister()));
-      const keys = await caches.keys();
-      await Promise.all(keys.map((k)=>caches.delete(k)));
-      const reg = await navigator.serviceWorker.register('./sw.js?v=20260323-02', { updateViaCache: 'none' });
+      const reg = await navigator.serviceWorker.register('./sw.js', { updateViaCache: 'none' });
       reg.update();
-      let refreshing = false;
-      navigator.serviceWorker.addEventListener('controllerchange', ()=>{
-        if(refreshing) return;
-        refreshing = true;
-        location.reload();
-      });
     }catch(e){}
   }
 }

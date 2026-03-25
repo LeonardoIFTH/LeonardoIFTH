@@ -1,5 +1,5 @@
 
-const CACHE = 'ifth-metais-v7';
+const CACHE = 'ifth-metais-v8';
 const ASSETS = [
   './',
   './index.html',
